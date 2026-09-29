@@ -16,7 +16,11 @@ export function withSandbox<T extends unknown[]>(handler: (req: Request, ...args
       return Response.json({ ok: false, error: 'This build only supports sandbox payments.' }, { status: 503 });
     }
     const origin = req.headers.get('origin');
-    if (!['GET', 'HEAD'].includes(req.method) && origin && origin !== new URL(req.url).origin) {
+    // Next may normalize req.url to an internal hostname. Host is the browser's
+    // actual request authority; do not trust arbitrary forwarded-host headers.
+    const target = new URL(req.url);
+    if (req.headers.get('host')) target.host = req.headers.get('host')!;
+    if (!['GET', 'HEAD'].includes(req.method) && origin && origin !== target.origin) {
       return Response.json({ ok: false, error: 'Cross-origin changes are not allowed.' }, { status: 403 });
     }
     for (const [key, session] of sessions) if (Date.now() - session.touched > TTL) sessions.delete(key);
