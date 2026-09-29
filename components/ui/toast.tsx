@@ -1,6 +1,6 @@
 'use client';
 
-// Minimal toast system â€” success / error / info, auto-dismiss.
+// Minimal toast system — success / error / info, auto-dismiss.
 
 import { createContext, useCallback, useContext, useState } from 'react';
 
