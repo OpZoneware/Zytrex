@@ -1,6 +1,6 @@
 'use client';
 
-// Minimal toast system — success / error / info, auto-dismiss.
+// Minimal toast system â€” success / error / info, auto-dismiss.
 
 import { createContext, useCallback, useContext, useState } from 'react';
 
@@ -34,11 +34,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none">
+      <div role="status" aria-live="polite" className="fixed bottom-20 lg:bottom-5 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="anim-fade-up card px-4 py-3 min-w-[260px] max-w-[360px] pointer-events-auto"
+            className="anim-fade-up card px-4 py-3 w-full sm:w-[360px] max-w-full pointer-events-auto"
             style={{
               borderColor: t.tone === 'success' ? 'rgba(4,120,87,.5)' : t.tone === 'error' ? 'rgba(244,91,105,.5)' : 'var(--color-line2)',
               background: 'rgba(13,17,24,.97)',
@@ -53,8 +53,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 }}
               />
               <div>
-                <div className="text-sm font-semibold text-ink">{t.title}</div>
-                {t.detail && <div className="text-xs text-ink2 mt-0.5 leading-relaxed">{t.detail}</div>}
+                <div className="text-sm font-semibold text-white">{t.title}</div>
+                {t.detail && <div className="text-xs text-white/75 mt-0.5 leading-relaxed">{t.detail}</div>}
               </div>
             </div>
           </div>
