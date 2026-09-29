@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useDialog } from './useDialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,26 +17,15 @@ export function Modal({
   width?: string;
   bare?: boolean;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [open, onClose]);
+  const dialogRef = useDialog(open, onClose);
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 anim-fade-in">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Workspace details" tabIndex={-1} className="fixed inset-0 z-[90] flex items-center justify-center p-4 anim-fade-in">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
         className={cn(
-          'relative w-full card anim-fade-up overflow-hidden',
+          'relative w-full card anim-fade-up max-h-[calc(100dvh-32px)] overflow-y-auto',
           width,
           bare && 'bg-transparent border-0 shadow-none'
         )}

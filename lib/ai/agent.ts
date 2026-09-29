@@ -292,7 +292,7 @@ function toolCategory(parsed: Parsed): ToolResult {
   };
 }
 
-function toolBeneficiaryHistory(query?: string): ToolResult {
+function toolBeneficiaryHistory(query?: string, period?: Parsed['period']): ToolResult {
   const d = db();
   const names = d.beneficiaries.map((b) => ({ name: b.name }));
   const m = query ? matchBeneficiary(query, names) : null;
@@ -307,7 +307,7 @@ function toolBeneficiaryHistory(query?: string): ToolResult {
     };
   }
   const ben = d.beneficiaries.find((b) => b.name === m.match.name)!;
-  const hist = beneficiaryHistory(ben.id)!;
+  const hist = beneficiaryHistory(ben.id, period)!;
   const text = `You've paid ${ben.name} ${naira(hist.total)} across ${hist.count} successful transaction${hist.count === 1 ? '' : 's'}.\n\nRecent payments:\n${hist.rows
     .slice(0, 5)
     .map((r) => `${fmtDateShort(r.initiated_at)} — ${naira0(r.amount)} — ${r.description}`)
@@ -482,7 +482,7 @@ export function runMessage(userId: string, text: string): ChatMessage {
       case 'category_spend':
         return runTool(() => toolCategory(parsed));
       case 'beneficiary_history':
-        return runTool(() => toolBeneficiaryHistory(parsed.beneficiary_query));
+        return runTool(() => toolBeneficiaryHistory(parsed.beneficiary_query, parsed.period));
       case 'prepare_transfer':
         return runTool(() => toolTransferPreview(parsed, user));
       case 'greeting':

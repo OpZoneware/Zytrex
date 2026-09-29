@@ -19,11 +19,13 @@ export default function LoginPage() {
   const router = useRouter();
   const [selected, setSelected] = useState('usr_daniel');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [picked, setPicked] = useState(false);
 
   async function enter(id?: string) {
     const userId = id ?? selected;
     setLoading(true);
+    setError('');
     try {
       const response = await fetch('/api/session', {
         method: 'POST',
@@ -34,6 +36,7 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch {
       setLoading(false);
+      setError('Unable to open the sandbox. Please try again.');
     }
   }
 
@@ -64,6 +67,7 @@ export default function LoginPage() {
         </div>
 
         <div className="card mt-8 p-5">
+          {error && <p role="alert" className="text-danger text-sm mb-3">{error}</p>}
           {!picked ? (
             <>
               <button

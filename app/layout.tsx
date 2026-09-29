@@ -4,7 +4,7 @@ import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
   title: "Zytrex AI Finance",
-  description: "Talk to your money. AI-controlled business payments and financial operations.",
+  description: "Your financial workspace. Prepare payments, manage approvals and explore financial insights in the Zytrex sandbox.",
 };
 
 export default function RootLayout({

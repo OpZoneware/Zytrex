@@ -131,11 +131,11 @@ export function topVendors(range?: DateRange, limit = 10) {
   return { rows, total };
 }
 
-export function beneficiaryHistory(beneficiaryId: string) {
+export function beneficiaryHistory(beneficiaryId: string, range?: DateRange) {
   const d = db();
   const ben = d.beneficiaries.find((b) => b.id === beneficiaryId);
   if (!ben) return null;
-  const rows = searchTransactions({ direction: 'OUT', beneficiary_id: beneficiaryId, limit: 100 });
+  const rows = searchTransactions({ direction: 'OUT', beneficiary_id: beneficiaryId, limit: 10000 }).filter(t => inRange(t, range));
   const total = rows.filter((r) => r.status === 'SUCCESSFUL').reduce((a, b) => a + b.amount, 0);
   const count = rows.filter((r) => r.status === 'SUCCESSFUL').length;
   return { beneficiary: ben, rows, total, count };

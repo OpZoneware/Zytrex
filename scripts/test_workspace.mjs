@@ -5,6 +5,7 @@ const browser=await chromium.launch();
 const context=await browser.newContext({viewport:{width:1440,height:1000}});
 const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
 fs.mkdirSync('artifacts',{recursive:true});
+page.on('response',async r=>{if(r.url().includes('/api/')) console.log('API',r.status(),r.url(),(await r.text().catch(()=>'' )).slice(0,700));});
 try {
  await page.goto('http://127.0.0.1:3000/login');
  await page.getByRole('button',{name:'Enter Zytrex AI Finance'}).click();
@@ -35,4 +36,4 @@ try {
  // A second browser gets an independent scenario and identity.
  const second=await browser.newContext();const other=await second.newPage();await other.goto('http://127.0.0.1:3000/dashboard');await other.getByText('₦28,450,250.00',{exact:true}).waitFor();await second.close();
  assert.deepEqual(errors,[]);console.log('Desktop, payment, mobile and session-isolation checks passed.');
-} finally {await browser.close();}
+} catch(error) {await page.screenshot({path:'artifacts/failure.png',fullPage:true});fs.writeFileSync('artifacts/failure.txt',await page.locator('body').innerText());console.log('PAGE',await page.locator('body').innerText(),'ERRORS',errors);throw error;} finally {await browser.close();}

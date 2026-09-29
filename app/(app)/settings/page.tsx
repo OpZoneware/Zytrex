@@ -296,9 +296,9 @@ function SettingsInner() {
         <div className="space-y-4">
           <div className="card p-6">
             <h3 className="text-[15px] font-semibold flex items-center gap-2 mb-1">
-              <Command size={16} className="text-accent" /> System policy (shown to the agent on every turn)
+              <Command size={16} className="text-accent" /> Future AI policy reference
             </h3>
-            <p className="text-[12.5px] text-ink3 mb-4">The contract that keeps the agent inside its lane.</p>
+            <p className="text-[12.5px] text-ink3 mb-4">This sandbox uses deterministic commands. This policy documents the intended future model boundary.</p>
             <pre className="text-[12px] font-mono text-ink2 bg-bg border border-line rounded-xl p-4 overflow-x-auto whitespace-pre-wrap leading-relaxed">
               {systemPrompt}
             </pre>
@@ -337,8 +337,8 @@ function SettingsInner() {
               ))}
             </div>
             <p className="text-[12.5px] text-ink3 mt-4 leading-relaxed">
-              The model never emits SQL and never receives payment credentials. Every call is validated server-side, classified by
-              deterministic risk rules, and written to <span className="mono">ai_tool_calls</span> + the audit log.
+              Commands use server-side services and deterministic risk checks. A production model integration will need
+              a validated tool boundary and durable audit records.
             </p>
           </div>
 
@@ -349,19 +349,19 @@ function SettingsInner() {
             <div className="space-y-2.5">
               <div className="rounded-lg border border-line bg-panel2 px-3.5 py-3 flex items-center justify-between gap-3">
                 <span className="text-[13px] text-ink2">Secret key</span>
-                <span className="mono text-[12.5px] text-ink3">sk_sandbox_••••••••••••4f2a — server-side only</span>
+                <span className="mono text-[12.5px] text-ink3">No credentials configured</span>
               </div>
               <div className="rounded-lg border border-line bg-panel2 px-3.5 py-3 flex items-center justify-between gap-3">
                 <span className="text-[13px] text-ink2">Webhook: payment.settled</span>
-                <Badge tone="green">ACTIVE (STUB)</Badge>
+                <Badge tone="green">NOT CONNECTED</Badge>
               </div>
               <div className="rounded-lg border border-line bg-panel2 px-3.5 py-3 flex items-center justify-between gap-3">
                 <span className="text-[13px] text-ink2">Webhook: approval.required</span>
-                <Badge tone="green">ACTIVE (STUB)</Badge>
+                <Badge tone="green">NOT CONNECTED</Badge>
               </div>
             </div>
             <p className="text-[12.5px] text-ink3 mt-3.5">
-              Keys never enter a prompt. The gateway abstraction (<span className="mono">SandboxZytrexGateway</span>) swaps for
+              No live provider or webhook is connected. The gateway abstraction (<span className="mono">SandboxZytrexGateway</span>) is a starting point for
               <span className="mono"> ProductionZytrexGateway</span> without touching the AI layer.
             </p>
           </div>
