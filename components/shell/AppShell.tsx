@@ -1,0 +1,33 @@
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { ArrowUpRight, Bell, CheckSquare, ChevronDown, CreditCard, LayoutDashboard, Menu, Receipt, ScrollText, Settings, Users, X, Command, ShieldCheck } from 'lucide-react';
+import { SessionProvider, useSession } from './session';
+import { CommandProvider, useCommand } from '@/components/command/CommandContext';
+import { cn } from '@/lib/utils';
+
+const nav = [
+  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/payments', label: 'Payments', icon: CreditCard },
+  { href: '/transactions', label: 'Transactions', icon: Receipt },
+  { href: '/approvals', label: 'Approvals', icon: CheckSquare },
+  { href: '/beneficiaries', label: 'Beneficiaries', icon: Users },
+  { href: '/audit', label: 'Audit trail', icon: ScrollText },
+  { href: '/settings', label: 'Settings', icon: Settings },
+];
+function Navigation({ close }: { close: () => void }) {
+  const path = usePathname(); const { pendingCount } = useSession();
+  return <nav aria-label="Main navigation" className="space-y-1 px-4">{nav.map((n,i) => <Link key={n.href} href={n.href} onClick={close} aria-current={path.startsWith(n.href)?'page':undefined} className={cn('side-link',i===5&&'mt-8',path.startsWith(n.href)&&'side-link-active')}><n.icon size={18} strokeWidth={1.7}/><span>{n.label}</span>{n.href==='/approvals'&&pendingCount>0&&<span className="ml-auto rounded-md bg-white/10 px-2 py-0.5 text-[11px]">{pendingCount}</span>}</Link>)}</nav>;
+}
+function Profile() {
+  const { user,users,switchUser }=useSession(); const [open,setOpen]=useState(false);
+  return <div className="relative"><button className="flex items-center gap-2.5 rounded-xl p-1.5 hover:bg-panel2" aria-label="Switch demo user" aria-expanded={open} onClick={()=>setOpen(!open)}><span className="avatar-brand">{user?.initials??'Z'}</span><span className="hidden sm:block text-left"><span className="block text-xs font-semibold">{user?.name}</span><span className="block text-[10px] text-ink2">{user?.title}</span></span><ChevronDown size={14}/></button>{open&&<><button className="fixed inset-0 z-40 cursor-default" aria-label="Close user menu" onClick={()=>setOpen(false)}/><div className="absolute right-0 top-full z-50 mt-2 w-64 card p-2 shadow-lift"><p className="kicker p-2">Simulate a different role</p><p className="text-xs text-ink2 px-2 pb-2">Only this browser’s sandbox changes.</p>{users.map(u=><button key={u.id} className="w-full rounded-lg p-2 text-left hover:bg-panel2 flex justify-between text-sm" onClick={async()=>{await switchUser(u.id);setOpen(false);}}><span>{u.name}</span><span className="text-xs text-ink2">{u.role}</span></button>)}</div></>}</div>;
+}
+function Shell({ children }: { children: React.ReactNode }) {
+  const [mobile,setMobile]=useState(false); const {openBar}=useCommand(); const {pendingCount}=useSession(); const path=usePathname();
+  const title=nav.find(n=>path.startsWith(n.href))?.label??'Finance';
+  const sidebar=<><Link href="/dashboard" className="flex items-center gap-3 px-7 h-24 text-white" aria-label="Zytrex overview"><span className="brand-mark">Z</span><span className="text-xl font-semibold tracking-[0.14em]">ZYTREX<span className="block text-[9px] tracking-[0.22em] text-white/50 mt-0.5">AI FINANCE</span></span></Link><div className="mx-5 mb-8 rounded-xl border border-white/10 px-3 py-3 flex gap-3 items-center"><span className="rounded-lg bg-white/10 p-2 text-xs text-white">M</span><div><div className="text-xs text-white font-medium">Meridian Industries</div><div className="text-[10px] text-white/50 mt-1">Business workspace</div></div></div><Navigation close={()=>setMobile(false)}/><div className="mt-auto mx-5 mb-6 rounded-xl border border-white/10 p-4"><ShieldCheck size={19} className="text-[#71ded0] mb-3"/><p className="text-xs text-white font-medium">Built for control.</p><p className="text-[11px] leading-relaxed text-white/55 mt-2">Every payment has a person behind the approval.</p><Link href="/audit" className="text-[11px] text-[#71ded0] inline-flex items-center gap-2 mt-4">Explore your audit trail <ArrowUpRight size={12}/></Link></div><div className="px-6 pb-5 text-[10px] text-white/40">Powered by Zytrex Payments · Sandbox</div></>;
+  return <div className="min-h-screen bg-app"><aside className="hidden lg:flex fixed inset-y-0 left-0 w-[244px] bg-[#152d39] flex-col z-50">{sidebar}</aside><header className="fixed top-0 inset-x-0 lg:left-[244px] h-[76px] bg-app/95 backdrop-blur border-b border-line z-30 flex items-center justify-between px-4 lg:px-9"><div className="flex items-center gap-3"><button className="lg:hidden p-2" aria-label="Open menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span className="text-sm font-medium hidden sm:block">Workspace <span className="text-ink3 mx-2">/</span> {title}</span><span className="sm:hidden font-semibold tracking-wider">ZYTREX</span></div><div className="flex items-center gap-2 sm:gap-5"><span className="sandbox-pill"><i/> Sandbox</span><Link href="/approvals" className="relative p-2" aria-label={`Approvals: ${pendingCount} pending`}><Bell size={18}/>{pendingCount>0&&<span className="absolute right-1 top-1 w-1.5 h-1.5 bg-warn rounded-full"/>}</Link><Profile/></div></header>{mobile&&<div className="fixed inset-0 z-[80] lg:hidden"><button className="absolute inset-0 bg-black/50" aria-label="Close menu" onClick={()=>setMobile(false)}/><aside className="absolute inset-y-0 left-0 w-[280px] bg-[#152d39] flex flex-col overflow-y-auto"><button className="absolute right-3 top-3 text-white p-2" aria-label="Close navigation" onClick={()=>setMobile(false)}><X size={18}/></button>{sidebar}</aside></div>}<main className="lg:ml-[244px] pt-[76px] pb-44 lg:pb-28 min-h-screen">{children}</main><nav aria-label="Mobile navigation" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-panel border-t border-line flex justify-around items-center h-[66px] pb-[env(safe-area-inset-bottom)]">{[nav[0],nav[3]].map(n=><Link className="mobile-link" href={n.href} key={n.href}><n.icon size={19}/><span>{n.label==='Overview'?'Home':n.label}</span></Link>)}<button aria-label="Command" className="w-11 h-11 rounded-2xl bg-accent text-white grid place-items-center" onClick={()=>openBar()}><Command size={20}/></button>{[nav[2],nav[1]].map(n=><Link className="mobile-link" href={n.href} key={n.href}><n.icon size={19}/><span>{n.label==='Transactions'?'Activity':n.label}</span></Link>)}</nav></div>;
+}
+export default function AppShell({children}:{children:React.ReactNode}) {return <SessionProvider><CommandProvider><Shell>{children}</Shell></CommandProvider></SessionProvider>;}
