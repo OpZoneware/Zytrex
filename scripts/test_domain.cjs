@@ -1,0 +1,36 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS loader transpiles the isolated domain modules for these tests. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+require.extensions['.ts'] = (m,f) => m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'), { compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true} }).outputText,f);
+const store = require('../lib/store.ts');
+const pay = require('../lib/services/payments.ts');
+const agent = require('../lib/ai/agent.ts');
+const {parse} = require('../lib/ai/parser.ts');
+const query = require('../lib/services/queries.ts');
+const {withSandbox} = require('../lib/sandbox.ts');
+const {getGateway} = require('../lib/gateway.ts');
+const user = role => store.db().users.find(u=>u.role===role);
+const reset = () => { store.resetDB(); store.db().policies.outside_hours_extra=false; };
+const prep = amount => { const r=pay.preparePayment({beneficiary_id:'ben_godwin',amount,purpose:'Regression test',requested_by:user('operations').id,source:'manual'}); assert.equal(r.ok,true); return r.payment; };
+const approve = p => { for(const role of p.required_approvals) assert.equal(pay.decidePayment(p.id,user(role),'APPROVED').ok,true); };
+let passed=0;
+async function test(name,run){await run();console.log('PASS',name);passed++;}
+(async()=>{
+await test('maker cannot approve own request',()=>{reset();const p=prep(2000000);assert.equal(pay.decidePayment(p.id,user('operations'),'APPROVED').ok,false);});
+await test('Finance and CEO require separate approvals',()=>{reset();const p=prep(2000000);pay.decidePayment(p.id,user('owner'),'APPROVED');assert.equal(p.status,'AWAITING_APPROVAL');pay.decidePayment(p.id,user('finance'),'APPROVED');assert.equal(p.status,'AWAITING_AUTHORIZATION');});
+await test('unknown action is rejected; auditor cannot cancel',()=>{reset();const p=prep(2000000);assert.throws(()=>agent.runAction(user('auditor').id,{action:'invalid',payload:{payment_id:p.id}}));agent.runAction(user('auditor').id,{action:'cancel_payment',payload:{payment_id:p.id}});assert.equal(p.status,'AWAITING_APPROVAL');});
+await test('insufficient funds never execute',async()=>{reset();const p=prep(30000000);approve(p);const before=store.db().accounts[0].available_balance;assert.equal((await pay.authorizeAndExecute(p.id,user('owner'),'123456')).ok,false);assert.equal(store.db().accounts[0].available_balance,before);});
+await test('expired request cannot execute',async()=>{reset();const p=prep(520000);approve(p);p.expires_at='2000-01-01T00:00:00Z';assert.equal((await pay.authorizeAndExecute(p.id,user('owner'),'123456')).ok,false);});
+await test('unverified beneficiary cannot execute',async()=>{reset();const p=prep(520000);approve(p);store.db().beneficiaries[0].verification_status='UNVERIFIED';assert.equal((await pay.authorizeAndExecute(p.id,user('owner'),'123456')).ok,false);});
+await test('precision is limited to kobo',()=>{reset();assert.equal(pay.preparePayment({beneficiary_id:'ben_godwin',amount:123.456,purpose:'test',requested_by:user('operations').id,source:'manual'}).ok,false);});
+await test('successful payment debits amount plus fee once; cannot be cancelled',async()=>{reset();const p=prep(520000);approve(p);const result=await pay.authorizeAndExecute(p.id,user('finance'),'123456');assert.equal(result.ok,true);assert.equal(store.db().accounts[0].available_balance,27930200);assert.equal(store.db().accounts[0].ledger_balance,27930200);assert.equal((await pay.authorizeAndExecute(p.id,user('finance'),'123456')).ok,false);assert.equal(pay.cancelPayment(p.id,user('owner')).ok,false);assert.equal(p.status,'SUCCESSFUL');});
+await test('competing payments cannot spend the same funds',async()=>{reset();const a=prep(20000000),b=prep(20000000);approve(a);approve(b);const results=await Promise.all([pay.authorizeAndExecute(a.id,user('owner'),'123456'),pay.authorizeAndExecute(b.id,user('owner'),'123456')]);assert.equal(results.filter(r=>r.ok).length,1);assert.equal(store.db().accounts[0].available_balance,8450200);});
+await test('unknown gateway outcome keeps funds reserved and prevents retry',async()=>{reset();const p=prep(520000);approve(p);const gateway=getGateway();const original=gateway.createTransfer;gateway.createTransfer=async()=>{throw new Error('timeout');};try{assert.equal((await pay.authorizeAndExecute(p.id,user('owner'),'123456')).ok,false);assert.equal(p.status,'PROCESSING');assert.equal(store.db().accounts[0].available_balance,27930200);assert.equal(store.db().accounts[0].ledger_balance,28450250);assert.equal((await pay.authorizeAndExecute(p.id,user('owner'),'123456')).ok,false);}finally{gateway.createTransfer=original;p.status='FAILED';}});
+await test('negated payment command is not a transfer',()=>{reset();assert.equal(parse('Do not pay Godwin Engineering 520k for LASCON',['Godwin Engineering Ltd']).intent,'unknown');});
+await test('exclusive month boundary excludes October',()=>{reset();store.db().transactions.push({...store.db().transactions[0],id:'boundary',initiated_at:'2026-10-01T00:00:00Z'});assert.equal(query.searchTransactions({start:'2026-09-01T00:00:00Z',end:'2026-10-01T00:00:00Z',limit:1000}).some(t=>t.id==='boundary'),false);});
+await test('browser sessions have isolated identity and data',async()=>{const get=withSandbox(async()=>Response.json({user:store.currentUser().id,balance:store.db().accounts[0].available_balance}));const a=await get(new Request('http://localhost/api/session'));const b=await get(new Request('http://localhost/api/session'));const cookieA=a.headers.get('set-cookie').split(';')[0],cookieB=b.headers.get('set-cookie').split(';')[0];assert.notEqual(cookieA,cookieB);const mutate=withSandbox(async()=>{store.setCurrentUser('usr_chidi');store.db().accounts[0].available_balance=1;return Response.json({ok:true});});await mutate(new Request('http://localhost/api/session',{method:'POST',headers:{cookie:cookieA}}));const aa=await(await get(new Request('http://localhost/api/session',{headers:{cookie:cookieA}}))).json();const bb=await(await get(new Request('http://localhost/api/session',{headers:{cookie:cookieB}}))).json();assert.equal(aa.user,'usr_chidi');assert.equal(bb.user,'usr_daniel');assert.equal(bb.balance,28450250);});
+await test('cross-origin mutation denied',async()=>{let ran=false;const handler=withSandbox(async()=>{ran=true;return Response.json({ok:true});});const response=await handler(new Request('http://localhost/api/session',{method:'POST',headers:{origin:'https://untrusted.example'}}));assert.equal(response.status,403);assert.equal(ran,false);});
+await test('same-origin survives framework hostname normalization',async()=>{const handler=withSandbox(async()=>Response.json({ok:true}));const r=await handler(new Request('http://localhost:3000/api/session',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'http://127.0.0.1:3000'}}));assert.equal(r.status,200);const bad=await handler(new Request('http://localhost:3000/api/session',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'https://untrusted.example','x-forwarded-host':'untrusted.example'}}));assert.equal(bad.status,403);});
+console.log(`${passed} domain checks passed`);
+})().catch(error=>{console.error(error);process.exitCode=1});
