@@ -2,7 +2,7 @@
 
 // Session context: current demo user, user switching, live approval counts.
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 export interface SessionUser {
   id: string;
@@ -41,6 +41,7 @@ export function useSession() {
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState('');
+  const expired = useRef(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [users, setUsers] = useState<SessionCtx['users']>([]);
   const [org, setOrg] = useState<SessionCtx['org']>(null);
@@ -48,10 +49,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [readyCount, setReady] = useState(0);
 
   const refresh = useCallback(async () => {
+    if (expired.current) return;
     try {
       const sRes = await fetch('/api/session');
-      const aRes = await fetch('/api/approvals');
       const s = await sRes.json();
+      if (sRes.status === 401) { expired.current = true; setUser(null); }
       if (!sRes.ok || !s.ok) throw new Error(s.error || 'Unable to open sandbox');
       setError('');
       if (s.ok) {
@@ -69,6 +71,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setUsers(s.users);
         setOrg(s.org);
       }
+      const aRes = await fetch('/api/approvals');
       const a = await aRes.json();
       if (a.ok) {
         setPending(a.pending.length);
