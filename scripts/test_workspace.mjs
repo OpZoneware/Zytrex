@@ -7,6 +7,7 @@ const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors
 fs.mkdirSync('artifacts',{recursive:true});
 page.on('response',async r=>{if(r.url().includes('/api/')) console.log('API',r.status(),r.url(),(await r.text().catch(()=>'' )).slice(0,700));});
 try {
+ const health=await context.request.get('http://127.0.0.1:3000/api/health');assert.equal(health.status(),200);
  await page.goto('http://127.0.0.1:3000/login');
  await page.getByRole('button',{name:'Enter Zytrex AI Finance'}).click();
  await page.getByRole('button',{name:'Continue',exact:true}).click();
@@ -24,6 +25,7 @@ try {
  await page.screenshot({path:'artifacts/payment.png'});
  await dialog.getByRole('button',{name:'Done',exact:true}).click();
  await page.getByText('₦27,930,200.00',{exact:true}).waitFor();
+ await page.reload();await page.getByText('₦27,930,200.00',{exact:true}).waitFor();
  for(const width of [390,320]){
    await page.setViewportSize({width,height:844});
    console.log('OVERFLOW',width,await page.evaluate(()=>[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>({tag:e.tagName,cls:e.className,right:e.getBoundingClientRect().right})).slice(0,15)));

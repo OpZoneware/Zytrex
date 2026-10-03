@@ -40,6 +40,7 @@ export function useSession() {
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
+  const [error, setError] = useState('');
   const [user, setUser] = useState<SessionUser | null>(null);
   const [users, setUsers] = useState<SessionCtx['users']>([]);
   const [org, setOrg] = useState<SessionCtx['org']>(null);
@@ -51,6 +52,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const sRes = await fetch('/api/session');
       const aRes = await fetch('/api/approvals');
       const s = await sRes.json();
+      if (!sRes.ok || !s.ok) throw new Error(s.error || 'Unable to open sandbox');
+      setError('');
       if (s.ok) {
         const c = s.current;
         setUser({
@@ -71,18 +74,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setPending(a.pending.length);
         setReady(a.ready_to_authorize.length);
       }
-    } catch {
-      /* sandbox offline — keep last state */
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Sandbox unavailable. Please retry.');
     }
   }, []);
 
   const switchUser = useCallback(
     async (id: string) => {
-      await fetch('/api/session', {
+      const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: id }),
       });
+      if (!response.ok) throw new Error('Unable to switch sandbox role');
       await refresh();
     },
     [refresh]
@@ -96,6 +100,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={{ user, users, org, pendingCount, readyCount, switchUser, refresh }}>
+      {error && <div role="alert" className="fixed top-0 inset-x-0 z-[150] bg-warn/95 text-ink px-4 py-3 text-sm">{error} <a href="/login" className="underline ml-2">Open sandbox</a></div>}
       {user ? children : <div className="min-h-screen grid place-items-center bg-app text-ink2 text-sm" role="status">Opening your sandbox workspace…</div>}
     </Ctx.Provider>
   );

@@ -59,7 +59,7 @@ Voice input fills the command bar for review before submission. Availability dep
 
 This is **not a production banking system**. Role selection and the public PIN simulate authorization. There is no real identity provider, bank verification, real payment rail, durable ledger, webhook reconciliation or production secrets manager.
 
-The store is in memory, scoped to a browser sandbox with an eight-hour idle lifetime; process restart clears it. Run the demo on **one long-lived Node process**. A multi-instance/serverless Vercel deployment needs a shared persistent store first; simply deploying this build does not provide durable sessions or payments. `PAYMENT_MODE` values other than `sandbox` are rejected by API routes.
+With DATABASE_URL configured, browser sandbox snapshots live in PostgreSQL. One transaction and row lock per request preserve state across processes and prevent conflicting updates. Only hashed session tokens are stored. Sessions expire after eight idle hours; expired cookies receive HTTP 401 and are cleared. Run npm run db:cleanup periodically to remove expired snapshots. Local development without DATABASE_URL uses memory; production and Vercel fail closed without a database. This snapshot store is for modest sandbox traffic, not a live-money ledger or permanent audit retention. `PAYMENT_MODE` values other than `sandbox` are rejected by API routes.
 
 The display/report clock is pinned to 29 September 2026. Business-hour policy uses the same scenario clock in Lagos time; expiry uses actual elapsed time. New beneficiaries remain unverified and cannot receive a simulated payment until a verified fixture or a real verification workflow exists.
 
@@ -67,8 +67,25 @@ The command engine is deterministic, not an LLM. Production AI should propose st
 
 ## Next milestones
 
-1. Add real authentication, organization isolation and shared persistent storage.
+1. Add real authentication and organization membership to replace browser-local demo identities.
 2. Replace mutable balances with a durable transactional ledger, reservations and fee entries.
 3. Add transaction-bound passkey/step-up authorization, idempotency, provider reconciliation and append-only durable audit events.
 4. Integrate the actual Zytrex Payments sandbox and verify delayed/duplicate/out-of-order provider events.
 5. Add structured LLM intent parsing, deeper reporting and production monitoring.
+
+
+## Vercel sandbox setup
+
+1. Link the repository to the intended Vercel project (Next.js preset, Node 22, repository root). Keep deployment protection enabled for this demo.
+2. Provision a PostgreSQL database through Vercel Marketplace. Use a separate preview database, and configure its pooled TLS connection URL as server-only `DATABASE_URL`. Set `PAYMENT_MODE=sandbox`. Never use a NEXT_PUBLIC variable for credentials or disable certificate validation.
+3. Verify the project link and required environment keys. With DATABASE_URL set in a trusted shell, run `npm ci` and `npm run db:migrate`. The migration creates only the sandbox session table and expiry index. It is intentionally not part of every preview build.
+4. Deploy and check `/api/health`: HTTP 200 and `storage: postgres` confirm database/schema access; HTTP 503 means setup is incomplete. Run the payment walkthrough and reload to verify the saved balance. A separate browser must get its own scenario.
+5. Schedule `npm run db:cleanup` in trusted administration to remove expired demo data, and set usage limits with the database provider.
+
+Optional APP_ORIGIN pins the accepted HTTPS origin. Leave it unset for dynamic Vercel previews. Vercel uses HTTPS cookies; forwarded-host headers are not trusted. The database pool uses Vercel attachDatabasePool and at most three connections per instance.
+
+Integration verification: against a disposable, migrated PostgreSQL database, set ZYTREX_TEST_DATABASE=1 and run `npm run test:persistence`. CI covers separate-process recovery, concurrent changes, competing payments, transaction rollback, isolation and expiry. Browser checks use PostgreSQL too.
+
+The simulated gateway runs inside the database transaction: a crash before commit discards that simulated request. A lost response after commit can be recovered by reading the payment. This is not suitable for live external side effects; implement a durable outbox, transaction-bound authorization, idempotency and reconciliation before integrating real rails. Audit history is retained only within each sandbox session's lifetime.
+
+References: [Vercel pooling](https://vercel.com/kb/guide/connection-pooling-with-functions), [node-postgres transactions](https://node-postgres.com/features/transactions).

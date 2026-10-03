@@ -8,17 +8,23 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node scripts/test_domain.cjs",
-    "test:ui": "node scripts/test_workspace.mjs"
+    "test:ui": "node scripts/test_workspace.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:cleanup": "node scripts/cleanup.mjs",
+    "test:persistence": "node scripts/test_persistence.cjs"
   },
   "dependencies": {
+    "@vercel/functions": "^3.9.9",
     "lucide-react": "^1.48.0",
     "next": "16.3.7",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

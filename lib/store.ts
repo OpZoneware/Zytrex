@@ -1,5 +1,4 @@
-// Modular-monolith store: single in-memory database instance on globalThis
-// so it survives Next.js dev-server HMR reloads. Swappable for PostgreSQL later.
+// Request-local sandbox snapshot. PostgreSQL commits it at the API boundary.
 
 import { seed } from './seed';
 import type { DB, User } from './types';
@@ -10,6 +9,7 @@ const g = globalThis as unknown as { __zytrexDB?: DB };
 export function db(): DB {
   const session = sandboxContext.getStore();
   if (session) return session.data;
+  if (process.env.DATABASE_URL || process.env.VERCEL || process.env.NODE_ENV === 'production') throw new Error('Missing sandbox request context');
   if (!g.__zytrexDB) g.__zytrexDB = seed();
   return g.__zytrexDB;
 }
